@@ -21,7 +21,7 @@ emplacement = -1;
 groupe = -1;
 positionne = false;
 rendement = (float)capacite / (float)taille;
-//cout << rendement << " = " << capacite << " / " << taille << endl;;
+cout << rendement << " = " << capacite << " / " << taille << endl;;
 }
 virtual ~Serveur(){}
 private:
