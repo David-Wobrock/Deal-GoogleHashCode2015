@@ -493,14 +493,25 @@ void repartitionGroupe2Experimental()
                 }
                 //on passe au groupe suivant qu'on ait réussi une insertion ou non
 
-                do
+
+                cout << "group++" << endl;
+                // on prend le suivant tant que sa capacité max dépasse le max théorique optimal
+                currentGroup +=1;
+                currentGroup %= P;
+                cout << "capacTotale du groupe "<< currentGroup << " "<<float(capacTotale(currentGroup)) << " > "<< capaciteMaxParGroupe << " capacitemax par groupe theorique" << endl;
+
+                //!ATTENTION!// DANS LA CONDITION ON UTILISE LE SERV QUI VIENT POTENTIELEMENT D'ETRE INSERE PAR LE SUIVANT, ET IL LE FAUDRAIT MAIS SA POS EST INCERTAINE
+                while((float(capacTotale(currentGroup) + currentServ->capacite) > capaciteMaxParGroupe) && nbGroupeVisite < listGroupes.size())
                 {
                     cout << "group++" << endl;
                     // on prend le suivant tant que sa capacité max dépasse le max théorique optimal
                     currentGroup +=1;
                     currentGroup %= P;
                     cout << "capacTotale du groupe "<< currentGroup << " "<<float(capacTotale(currentGroup)) << " > "<< capaciteMaxParGroupe << " capacitemax par groupe theorique" << endl;
-                }while(float(capacTotale(currentGroup)) > capaciteMaxParGroupe);
+                    //on considère donc ce groupe comme visité pour ce serveur
+                    nbGroupeVisite++;
+                }
+
 
             }//finTantque
 
