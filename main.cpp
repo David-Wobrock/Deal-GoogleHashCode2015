@@ -2,6 +2,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <list>
 #include <algorithm>
 #include "Serveur.cpp"
 #include "Emplacement.cpp"
@@ -14,7 +15,8 @@ vector<Serveur*> servOrdreInit, servOrdreRend;
 vector<vector<Emplacement> > tab;
 vector<Groupe> listGroupes;
 vector<int> capacite;
-int capaciteTotale = 0;
+float capaciteTotale = 0, capaciteMaxParGroupe = 0, capaciteMinParGroupe = 0;
+float GlobalMin=10000, GlobalMax=0;
 int R, S, U, P, M;
 
 void afficheBaies(vector<vector<Emplacement> > & baies)
@@ -60,9 +62,33 @@ void afficherGroupe()
 
 }
 
-void chargeMin()
+//renvoie la capac min d'un groupe
+int capacMin(int gr)
 {
-	int GlobalMin = 10000;
+    int total = 0;
+    int max = 0;
+    for(int j=0; j < R; j++)
+    {
+        total+=listGroupes[gr].capacitesSurLigne[j];
+        if(listGroupes[gr].capacitesSurLigne[j] > max)
+            max = listGroupes[gr].capacitesSurLigne[j];
+    }
+    return total-max;
+}
+
+//renvoie la capac max d'un groupe
+int capacTotale(int gr)
+{
+    int total = 0;
+    for(int j=0; j < R; j++)
+    {
+        total+=listGroupes[gr].capacitesSurLigne[j];
+    }
+    return total;
+}
+
+void calculScore()
+{
  //sur tous les groupes
 	for(int i = 0; i < P; i ++)
 	{
@@ -82,9 +108,12 @@ void chargeMin()
 		{
 			GlobalMin = capacMin;
 		}
-		cout << " : "<< capacMin << endl;;
+		if (total > GlobalMax)
+        {
+            GlobalMax = total;
+        }
+		cout << " : (min) "<< capacMin << "|| : (max)" << total << endl;;
 	}
-	cout <<"Score : " << GlobalMin;
 }
 
 // FN SORT des serveurs par rendement
@@ -340,40 +369,164 @@ int groupeMinLigne(int ligne, int servDejaGrouppe)
 	return groupeMin;
 }
 
+//renvoie le level min de completion de toutes les ligne d'un groupe
+int minLevelInGroup(int gr)
+{
+    int groupMin = 0;
+    int currentMin = 0;
+    for(int i=0; i<int(listGroupes[gr].nbserv.size()); ++i)
+    {
+        currentMin = listGroupes[gr].nbserv[i];
+        if(currentMin < groupMin)
+        {
+            groupMin = currentMin;
+        }
+    }
+    return groupMin;
+}
+
+//renvoie le level min de completion global a tout les groupe
+int globalMinLevelInGroups()
+{
+    int globalMin = 0;
+    int currentMin = 0;
+    for(int i=0; i<int(listGroupes.size()); ++i)
+    {
+        currentMin = minLevelInGroup(i);
+        if(currentMin < globalMin)
+        {
+            globalMin = currentMin;
+        }
+    }
+    return globalMin;
+}
+
+//renvoie le level min de completion de toutes les ligne d'un groupe
+int maxLevelInGroup(int gr)
+{
+    int groupMax = 0;
+    int currentMax = 0;
+    for(int i=0; i<int(listGroupes[gr].nbserv.size()); ++i)
+    {
+        currentMax = listGroupes[gr].nbserv[i];
+        if(currentMax > groupMax)
+        {
+            groupMax = currentMax;
+        }
+    }
+    return groupMax;
+}
+
+//renvoie le level min de completion global a tout les groupe
+int globalMaxLevelInGroups()
+{
+    int globalMax = 0;
+    int currentMax = 0;
+    for(int i=0; i<int(listGroupes.size()); ++i)
+    {
+        currentMax = maxLevelInGroup(i);
+        if(currentMax > globalMax)
+        {
+            globalMax = currentMax;
+        }
+    }
+    return globalMax;
+}
+
+
 void repartitionGroupe2Experimental()
 {
-    // A MEDITER ALGO ECRIT A 3h00 ALORS FAUT VOIR
-    //COMPLEXITE ASSEZ MOCHE MAIS BON NP-COMPLET DONC BALANCE QUI MONTE EN COMPLEXITE POUR SE RAPPROCHER LE LA SOLUTION OPTIMUM
-
-	//va d'abord placer de maniere a répartir sur un max de ligne une quantité équitable de serv sur la totalité des groupes
-	//puis quand plus possible commence a permettre une diff supplémentaire de +1 a chaque itération entre les quantité de serv par colonne par groupe.
-
-	//comme ça on répartis chez tout le monde un maximum puis on remplis ce qui nous reste comme on peut.
-
+    /* INIT */
+    list<Serveur*> servListToGroup; //list de stockage des serv
+    for(int i=0; i<int(servOrdreRend.size()); ++i)
+    {
+        if(servOrdreRend[i]->rangee != -1)
+        {
+            //les meilleurs au front de la list, les moins bons au bck
+            servListToGroup.push_back(servOrdreRend[i]);
+        }
+    }
+    list<Serveur*>::iterator servIt;
+    servIt = servListToGroup.begin();
+    Serveur* currentServ;
+    int level = 1;
+    unsigned int nbGroupeVisite = 0;
+    int currentGroup = 0;
+    cout << "Demarage de la répartition" << endl;
     //tant qu'il reste des serv a repartir
-        //X=1       // le level a equilibrer au mieux sur toutes les rangées de chaque groupe
+    while(servListToGroup.size() != 0)
+    {
+        cout << "Repartition pour le level " <<  level << endl;
         //tant qu'il n'y a exactement pas X serv répartis sur chacun des groupes ou qu'aucun des serv restant n'a pu être placé
+        while(globalMinLevelInGroups() != level  &&  servIt != servListToGroup.end())
+        {
+            //system("pause");
             //Tenter de repartir un nouveau serv donné selon l'ordre décroissant par rendement, et selon les serv 'ayant pas pu être placés au rang précédent (PILE ?)
-                //vérifier que le serv est bien installé dans la baie    (!=-1)
-                    //tant que l'on a pas test tous les groupes et que le serv n'est pas placé dans un groupe
-                        //on initialise le nombre de groupe testé, à 0
-                        //on regarde si le groupe peut accueuillir le serveur
-                        //CAD :
-                        //SI son nombre de serv sur la rangee < X
-                            //on insere le serv dans ce groupe
-                            //on passe au serv suivant
-                        //SINON
-                            //on passe au groupe suivant
-                            //on augmente le nombre de groupe testé ++
-                    //finTantque
-                    //SI sorti sans être grouppé
-                        //on le retient comme n'ayant pas réussi a le placer dans un groupe pour le level X (ON LE REMPILE MAIS ON CONTINUE D'ACCEDER A LA VALEUR SUIVANTE?)
-                    //on passe au serv suivant
-            //finTantQue
-        //X++
-	//FinTanQUE
+            currentServ = *servIt;
+            cout << "Tentative de placement pour le serveur de rendement " << currentServ->rendement <<  endl;
+            //vérifier que le serv est bien installé dans la baie    (!=-1) /* deja fait avant dans le transfert en list */
+            //on initialise le nombre de groupe testé, à 0
+            nbGroupeVisite = 0;
+            //tant que l'on a pas test tous les groupes et que le serv n'est pas placé dans un groupe
+            while(nbGroupeVisite < listGroupes.size() && currentServ->groupe == -1)
+            {
+                cout << "TENTATIVE : serveur de rendement " << currentServ->rendement << " dans le groupe " << currentGroup << endl;
+                //on regarde si le groupe peut accueuillir le serveur
+                //CAD :
+                //SI son nombre de serv sur la rangee < X
+                if(listGroupes[currentGroup].nbserv[currentServ->rangee] < level)
+                {
+                    //on insere le serv dans ce groupe
+                    currentServ->groupe = currentGroup;
+                    listGroupes[currentGroup].capacitesSurLigne[currentServ->rangee] += currentServ->capacite;
+                    listGroupes[currentGroup].nbserv[currentServ->rangee]++;
+                    //on passe au serv suivant en l'enlevant de la pile
+                    servIt = servListToGroup.erase(servIt);
+                    cout << "\tServeur placé au level " <<  level << " dans le groupe " <<  currentGroup << endl;
+                }
+                //SINON
+                else
+                {
+                    cout << "\tServeur NON placé au level " <<  level << " dans le groupe " <<  currentGroup << endl;
+                    //on augmente le nombre de groupe testé ++
+                    nbGroupeVisite++;
+                }
+                //on passe au groupe suivant qu'on ait réussi une insertion ou non
 
-	//
+                do
+                {
+                    cout << "group++" << endl;
+                    // on prend le suivant tant que sa capacité max dépasse le max théorique optimal
+                    currentGroup +=1;
+                    currentGroup %= P;
+                    cout << "capacTotale du groupe "<< currentGroup << " "<<float(capacTotale(currentGroup)) << " > "<< capaciteMaxParGroupe << " capacitemax par groupe theorique" << endl;
+                }while(float(capacTotale(currentGroup)) > capaciteMaxParGroupe);
+
+            }//finTantque
+
+
+            //SI sorti sans être groupé
+            if(currentServ->groupe == -1)
+            {
+
+                cout << "\tServeur implacable au level " <<  level << endl;
+                //on le retient comme n'ayant pas réussi a le placer dans un groupe pour le level X
+                //plus précisement on ne le rempile pas (pour y retourner plus tard), il n'est pas hors pile mais on passe quand meme au suivant POUR CE LVL comme etant le suivant
+                ++servIt;
+            }
+            cout << "fin de la tentative de placement du serveur courant" << endl << endl
+
+
+            ;
+            //on passe au serv suivant
+        }//finTantQue
+
+        //le lvl est terminé parcequ'on l'a rempli OU parceque les serveurs restants n'ont pas pu être placé sur ce lvl.
+        //on retourne voir les serv que l'on a passé pour ce lvl avant d'augmenter le lvl
+        servIt = servListToGroup.begin();
+        //X++     // le level a equilibrer au mieux sur toutes les rangées de chaque groupe
+        ++level;
+    }//FinTanQUE
 }
 
 void repartitionGroupe()
@@ -387,7 +540,7 @@ void repartitionGroupe()
 // sinon la capacité minimale est 0 car les groupes n'auront que 0 ou 1 serv
 // BOUCLE INFINIE MAGGLE
 
-	int nbServMinADistribuer = 2; //on peut le changer 
+	int nbServMinADistribuer = 2; //on peut le changer
 	// faire gaffe a ne pas faire dépasser le nombre de serv par nbServMinADistribuer*P (voire moins vu la contrainte de placement de ligne)
 	while(cpt < nbServMinADistribuer*P)
 	{
@@ -467,7 +620,7 @@ void repartitionRand()
 
 int main(int argc, char** argv)
 {
-	init(argv[1]);
+    init(argv[1]);
 	capacite = vector<int> (tab.size(),0);
 //for(int i = 0; i < capacite.size(); i++)
 //cout << capacite[i] << endl;
@@ -482,13 +635,22 @@ int main(int argc, char** argv)
 
 //cout << endl;
 	}
-    repartitionGroupe();
+    //repartitionGroupe();
 	//repartitionRand();
-	cout << endl;
+    capaciteMaxParGroupe = capaciteTotale / P;//total / nombre de groupe
+    capaciteMinParGroupe = capaciteMaxParGroupe - (float(1)/R)*capaciteMaxParGroupe; //on enleve 1/nombre de rangee au max
+	repartitionGroupe2Experimental();
 	afficherGroupe();
 	afficheBaies(tab);
-	chargeMin();
-	cout << endl << "capacitetotale "<<capaciteTotale;
+	calculScore();
+	cout << endl << "capacitetotale "<< capaciteTotale << endl;
+	cout << endl << "capaciteMaxParGroupe Theorique "<< capaciteMaxParGroupe << "(Optimal)" << endl;
+	cout << endl << "capaciteMinParGroupe Theorique "<< capaciteMinParGroupe << "(Optimal)" <<endl;
+	cout << endl << "capaciteMaxParGroupe Effective "<< GlobalMax << endl;
+	cout << endl << "capaciteMinParGroupe Effective "<< GlobalMin << endl;
+	cout << endl << "Nombre de serv min par rangee tout serv confondus "<< globalMinLevelInGroups() << endl;
+	cout << endl << "Nombre de serv max par rangee tout serv confondus "<< globalMaxLevelInGroups() << endl;
+	cout << "|||||||||||| SCORE : "<< GlobalMin <<" ||||||||||||"<< endl;
 	printOutFile();
 	return 0;
 }

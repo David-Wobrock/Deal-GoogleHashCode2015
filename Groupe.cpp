@@ -16,6 +16,7 @@ public:
 		}
 	}
 	virtual ~Groupe(){}
+
 private:
 };
 #endif	/* GROUPE_H */
