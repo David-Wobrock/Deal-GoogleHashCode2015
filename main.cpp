@@ -221,33 +221,33 @@ int insererServ( vector<Emplacement>& barre,int emplacement, Serveur* serv)
 }
 int rechercheEmplacement(vector<vector<Emplacement>> & barres, Serveur* servIns)
 {
-	vector<Emplacement> b_min = barres[0];
-	int taille_s = servIns->taille;
-	int val_min = *min_element(capacite.begin(),capacite.end());
-	bool trouve = false;
-	int inser;
-	for(int i = 0; i < int(barres.size()); i++)
-	{
+vector<Emplacement> b_min = barres[0];
+int taille_s = servIns->taille;
+int val_min = *min_element(capacite.begin(),capacite.end());
+bool trouve = false;
+int inser;
+for(int i = 0; i < barres.size(); i++)
+{
 //cout <<"rangee " << i <<endl;
-		if(capacite[i] == val_min && verifRangee(barres[i],taille_s))
-		{
-			inser = i;
-			trouve = true;
-			break;
-		}
-	}
-
-	if(trouve == true )
+	if(capacite[i] >= val_min && verifRangee(barres[i],taille_s))
 	{
-		int emplacement= rechercheCase(barres[inser],servIns);
-	//cout <<"emplacement " << emplacement <<endl;
-		insererServ(barres[inser],emplacement,servIns);
-		servIns->rangee = inser;
-		capacite[inser] += servIns->capacite;
-
+		inser = i;
+		trouve = true;
+		break;
 	}
+}
+
+if(trouve == true )
+{
+	int emplacement= rechercheCase(barres[inser],servIns);
+	//cout <<"emplacement " << emplacement <<endl;
+	insererServ(barres[inser],emplacement,servIns);
+	servIns->rangee = inser;
+	capacite[inser] += servIns->capacite;
+
+}
 //cout <<endl;
-	return 0;
+return 0;
 }
 int rechercheCase(vector<Emplacement>& barre, Serveur* serv)
 {
@@ -450,6 +450,7 @@ void repartitionGroupe2Experimental()
     servIt = servListToGroup.begin();
     Serveur* currentServ;
     int level = 1;
+    int nbLastRejected = 0;
     unsigned int nbGroupeVisite = 0;
     int currentGroup = 0;
     cout << "Demarage de la répartition" << endl;
